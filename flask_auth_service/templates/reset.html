@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Reset password for {{ email }}</h1>
+  <form method="post" class="form">
+    <label>New password</label>
+    <input type="password" name="password" minlength="8" required>
+    <label>Confirm new password</label>
+    <input type="password" name="password2" minlength="8" required>
+    <button type="submit">Reset password</button>
+  </form>
+{% endblock %}

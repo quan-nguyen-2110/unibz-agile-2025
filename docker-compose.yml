@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"      # AMQP for apps
+      - "15672:15672"    # RabbitMQ UI → http://localhost:15672
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  api:
+    container_name: apartment_api
+    build:
+      context: .
+      dockerfile: Api/Dockerfile
+    ports:
+      - "8081:8080" # The Api image always listens on port 8080 inside the container
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Server=db;Database=ApartmentDb;User=sa;Password=Yourpassword123!;TrustServerCertificate=True;
+      # 👇 you'll use these later in .NET to connect to MQ
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    depends_on:
+      - db
+      - rabbitmq
+
+  db:
+    container_name: apartment_sql
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Yourpassword123!
+    ports:
+      - "1433:1433" # The SQL Server image always listens on port 1433 inside the container
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  search:
+    container_name: search_service
+    build:
+      context: ./search      #   Python folder
+      dockerfile: Dockerfile
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    depends_on:
+      - rabbitmq
+    ports:
+      - "5003:8000"          # http://localhost:5003/health
+
+volumes:
+  sql_data:
+
+
+  auth:
+    container_name: auth_service
+    build:
+      context: ./flask_auth_service
+      dockerfile: Dockerfile
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    depends_on:
+      - rabbitmq
+    ports:
+      - "5004:5000"   # Flask on http://localhost:5004

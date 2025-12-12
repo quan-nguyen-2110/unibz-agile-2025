@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Forgot password</h1>
+  <form method="post" class="form">
+    <label>Email</label>
+    <input type="email" name="email" required>
+    <button type="submit">Send reset link</button>
+  </form>
+  <p>In this demo, the reset link is printed to the server console.</p>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1 class="title">Welcome{% if user %}, {{ user['email'] }}{% endif %}</h1>
+  {% if user %}
+    <p>You are logged in.</p>
+    <a class="button" href="{{ url_for('logout') }}">Log out</a>
+  {% else %}
+    <p>This is a simple Flask app with registration, login, and password reset.</p>
+    <div class="actions">
+      <a class="button" href="{{ url_for('register') }}">Register</a>
+      <a class="button" href="{{ url_for('login') }}">Log in</a>
+      <a class="button secondary" href="{{ url_for('forgot') }}">Forgot password</a>
+    </div>
+  {% endif %}
+{% endblock %}
