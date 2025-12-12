@@ -11,55 +11,87 @@ services:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
 
-  api:
+  # -------------------------
+  # APARTMENT SERVICE
+  # -------------------------
+  apartment_api:
     container_name: apartment_api
     build:
-      context: .
+      context: ../ApartmentService 
       dockerfile: Api/Dockerfile
     ports:
-      - "8081:8080" # The Api image always listens on port 8080 inside the container
+      - "8081:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Default=Server=db;Database=ApartmentDb;User=sa;Password=Yourpassword123!;TrustServerCertificate=True;
-      # 👇 you'll use these later in .NET to connect to MQ
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
+      ASPNETCORE_ENVIRONMENT: "Production"
+      DOTNET_RUNNING_IN_CONTAINER: true
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__Default: "Server=apartment_sql;Database=ApartmentDb;User=sa;Password=Yourpassword123!;TrustServerCertificate=True;"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__User: "guest"
+      RabbitMQ__Pass: "guest"
+      RabbitMQ__ExchangeName: "rent-hub.exchange"
     depends_on:
-      - db
+      - apartment_sql
       - rabbitmq
 
-  db:
+  apartment_sql:
     container_name: apartment_sql
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=Yourpassword123!
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: "Yourpassword123!"
     ports:
-      - "1433:1433" # The SQL Server image always listens on port 1433 inside the container
+      - "1433:1433"
     volumes:
-      - sql_data:/var/opt/mssql
-
-  search:
-    container_name: search_service
+      - apartment_sql_data:/var/opt/mssql
+ 
+  # -------------------------
+  # BOOKING SERVICE
+  # -------------------------
+  booking_api:
+    container_name: booking_api
     build:
-      context: ./search      #   Python folder
-      dockerfile: Dockerfile
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
-    depends_on:
-      - rabbitmq
+      context: ../BookingService
+      dockerfile: Api/Dockerfile
     ports:
-      - "5003:8000"          # http://localhost:5003/health
+      - "8083:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      DOTNET_RUNNING_IN_CONTAINER: true
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__Default: "Server=booking_sql;Database=BookingDb;User=sa;Password=Yourpassword123!;TrustServerCertificate=True;"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__User: "guest"
+      RabbitMQ__Pass: "guest"
+      RabbitMQ__ExchangeName: "rent-hub.exchange"
+    depends_on:
+      - booking_sql
+      - rabbitmq
 
-volumes:
-  sql_data:
+  booking_sql:
+    container_name: booking_sql
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: "Yourpassword123!"
+    ports:
+      - "1434:1433"
+    volumes:
+      - booking_sql_data:/var/opt/mssql
 
 
+  # -------------------------
+  # VOLUMES
+  # -------------------------
+  volumes:
+    apartment_sql_data:
+    booking_sql_data:
+
+  # -------------------------
+  # AUTH SERVICE
+  # -------------------------
   auth:
     container_name: auth_service
     build:
