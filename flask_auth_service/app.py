@@ -1,3 +1,4 @@
+import uuid
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify
 import sqlite3
 import re
@@ -60,7 +61,7 @@ def init_db():
     db.executescript(
         """
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id uniqueidentifier PRIMARY KEY,
             name TEXT NOT NULL,
             phone TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
@@ -312,24 +313,26 @@ def api_register():
     exists = db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
     if exists:
         return jsonify({"success": False, "errors": ["Email already exists."]}), 400
+    
+    exists = db.execute("SELECT 1 FROM users WHERE phone = ?", (phone,)).fetchone()
+    if exists:
+        return jsonify({"success": False, "errors": ["Phone already exists."]}), 400
 
     password_hash = generate_password_hash(password)
+    user_id = str(uuid.uuid4())
     cursor = db.execute(
-        "INSERT INTO users (name, email, phone, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
-        (name, email, phone, password_hash, datetime.utcnow().isoformat(timespec="seconds")),
+        "INSERT INTO users (id, name, email, phone, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, name, email, phone, password_hash, datetime.utcnow().isoformat(timespec="seconds")),
     )
     db.commit()
-
-    user_id = cursor.lastrowid
 
     try:
         # NEW: Publish MQ user_registered event
         message = {
-            "type": "user_registered",
-            "data": {
-                "id": user_id,
-                "email": email,
-            },
+            "id": user_id,
+            "email": email,
+            "name" : name,
+            "phone" : phone,
         }
         publish_event("rk-register-user", message)
     except Exception as e:
@@ -337,6 +340,57 @@ def api_register():
 
     return jsonify({"success": True, "message": "User created successfully"}), 201
 
+@app.route("/api/update-profile", methods=["POST"])
+def api_update():
+    data = request.get_json() or {}
+    id = (data.get("id") or "").strip().lower()
+    name = (data.get("name") or "").strip().lower()
+    email = (data.get("email") or "").strip().lower()
+    phone = (data.get("phone") or "").strip().lower()
+
+    errors = []
+    if not validate_email(email):
+        errors.append("Please enter a valid email address.")
+    if not validate_phone(phone):
+        errors.append("Please enter a valid phone number.")
+    if len(name) == 0:
+        errors.append("Name is required.")
+
+    if errors:
+        return jsonify({"success": False, "errors": errors}), 400
+
+    db = get_db()
+    exists = db.execute("SELECT 1 FROM users WHERE id = ?", (id,)).fetchone()
+    if not exists:
+        return jsonify({"success": False, "errors": ["Use not found."]}), 400
+    
+    exists = db.execute("SELECT 1 FROM users WHERE email = ? and id != ?", (email, id)).fetchone()
+    if exists:
+        return jsonify({"success": False, "errors": ["Email already exists."]}), 400
+    
+    exists = db.execute("SELECT 1 FROM users WHERE phone = ? and id != ?", (phone, id)).fetchone()
+    if exists:
+        return jsonify({"success": False, "errors": ["Phone already exists."]}), 400
+    
+    db.execute(
+        "UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?",
+        (name, email, phone, id),
+    )
+    db.commit()
+
+    try:
+        # NEW: Publish MQ user_updated event
+        message = {
+            "id": id,
+            "email": email,
+            "name" : name,
+            "phone" : phone,
+        }
+        publish_event("rk-update-user", message)
+    except Exception as e:
+        print(f"Push message error: {e}")
+
+    return jsonify({"success": True, "message": "User updated successfully"}), 201
 
 @app.route("/api/login", methods=["POST"])
 def api_login():

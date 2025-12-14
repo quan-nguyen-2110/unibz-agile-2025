@@ -6,10 +6,11 @@ import pika
 _exchangeName = "rent-hub.exchange"
 
 def get_connection():
-    host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+    host = os.getenv("RABBITMQ_HOST", "localhost")
     port = int(os.getenv("RABBITMQ_PORT", "5672"))
     user = os.getenv("RABBITMQ_USER", "guest")
     password = os.getenv("RABBITMQ_PASS", "guest")
+    global _exchangeName
     _exchangeName = os.getenv("RABBITMQ_EXCHANGE", "rent-hub.exchange")
 
     credentials = pika.PlainCredentials(user, password)
