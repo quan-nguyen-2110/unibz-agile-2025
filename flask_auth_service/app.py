@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import os
 from flask_mail import Mail, Message
+from flask_cors import CORS
 
 # NEW: RabbitMQ producer
 from mq_producer import publish_event
@@ -15,6 +16,9 @@ from mq_producer import publish_event
 # App setup & configuration
 # -------------------------
 app = Flask(__name__)
+
+# Allow requests from React frontend
+CORS(app, origins=["*"])  # or ["*"] for any origin
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 app.config["DATABASE"] = os.environ.get("DATABASE", os.path.join(app.root_path, "app.db"))
@@ -57,6 +61,8 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL
@@ -75,10 +81,14 @@ def before_request():
 # Small helpers
 # -------------------------
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PHONE_RE = re.compile(r"^[+]?[0-9]\d{1,14}$")  # E.164 format
 
 
 def validate_email(email: str) -> bool:
     return bool(EMAIL_RE.match(email or ""))
+
+def validate_phone(phone: str) -> bool:
+    return bool(PHONE_RE.match(phone or ""))
 
 
 def logged_in() -> bool:
@@ -107,14 +117,20 @@ def index():
 def register():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
+        name = request.form.get("name", "").strip().lower() or "0123456789"
+        phone = request.form.get("phone", "").strip().lower()
         password = request.form.get("password", "")
         password2 = request.form.get("password2", "")
 
         errors = []
         if not validate_email(email):
             errors.append("Please enter a valid email address.")
+        if not validate_phone(phone):
+            errors.append("Please enter a valid phone number.")
         if len(password) < 8:
             errors.append("Password must be at least 8 characters long.")
+        if len(name) == 0:
+            errors.append("Name is required.")
         if password != password2:
             errors.append("Passwords do not match.")
 
@@ -127,9 +143,11 @@ def register():
             else:
                 password_hash = generate_password_hash(password)
                 cursor = db.execute(
-                    "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+                    "INSERT INTO users (name, email, phone, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
                     (
+                        name,
                         email,
+                        phone,
                         password_hash,
                         datetime.utcnow().isoformat(timespec="seconds"),
                     ),
@@ -138,16 +156,20 @@ def register():
 
                 user_id = cursor.lastrowid
 
-                # NEW: Publish MQ user_registered event
-                event = {
-                    "type": "user_registered",
-                    "data": {
-                        "id": user_id,
-                        "email": email,
-                    },
-                }
-                publish_event("user_events", event)
-
+                try:
+                    # NEW: Publish MQ user_registered event
+                    message = {
+                        "type": "user_registered",
+                        "data": {
+                            "id": user_id,
+                            "email": email,
+                        },
+                    }
+                    publish_event("rk-register-user", message)
+                    print(f"Push message success for user id {user_id}")
+                except Exception as e:
+                    print(f"Push message error for user id {user_id}: {e}")
+                
                 flash("Registration successful. You can now log in.", "success")
                 return redirect(url_for("login"))
 
@@ -265,15 +287,21 @@ def reset_password(token):
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.get_json() or {}
+    name = (data.get("name") or "").strip().lower()
     email = (data.get("email") or "").strip().lower()
+    phone = (data.get("phone") or "").strip().lower()
     password = data.get("password") or ""
     password2 = data.get("password2") or ""
 
     errors = []
     if not validate_email(email):
         errors.append("Please enter a valid email address.")
+    if not validate_phone(phone):
+        errors.append("Please enter a valid phone number.")
     if len(password) < 8:
         errors.append("Password must be at least 8 characters long.")
+    if len(name) == 0:
+        errors.append("Name is required.")
     if password != password2:
         errors.append("Passwords do not match.")
 
@@ -287,22 +315,25 @@ def api_register():
 
     password_hash = generate_password_hash(password)
     cursor = db.execute(
-        "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
-        (email, password_hash, datetime.utcnow().isoformat(timespec="seconds")),
+        "INSERT INTO users (name, email, phone, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
+        (name, email, phone, password_hash, datetime.utcnow().isoformat(timespec="seconds")),
     )
     db.commit()
 
     user_id = cursor.lastrowid
 
-    # NEW: Publish user_registered event
-    event = {
-        "type": "user_registered",
-        "data": {
-            "id": user_id,
-            "email": email,
-        },
-    }
-    publish_event("user_events", event)
+    try:
+        # NEW: Publish MQ user_registered event
+        message = {
+            "type": "user_registered",
+            "data": {
+                "id": user_id,
+                "email": email,
+            },
+        }
+        publish_event("rk-register-user", message)
+    except Exception as e:
+        print(f"Push message error: {e}")
 
     return jsonify({"success": True, "message": "User created successfully"}), 201
 
@@ -315,7 +346,7 @@ def api_login():
 
     db = get_db()
     user = db.execute(
-        "SELECT id, email, password_hash FROM users WHERE email = ?", (email,)
+        "SELECT id, name, email, phone, password_hash FROM users WHERE email = ?", (email,)
     ).fetchone()
 
     if not user or not check_password_hash(user["password_hash"], password):
@@ -325,7 +356,9 @@ def api_login():
         "success": True,
         "user": {
             "id": user["id"],
-            "email": user["email"]
+            "name": user["name"],
+            "email": user["email"],
+            "phone": user["phone"],
         }
     }), 200
 
@@ -382,32 +415,42 @@ def api_forgot_password():
 @app.route("/api/reset-password", methods=["POST"])
 def api_reset_password():
     data = request.get_json() or {}
-    token = data.get("token") or ""
-    password = data.get("password") or ""
-    password2 = data.get("password2") or ""
+    email = data.get("email") or ""
+    currentPassword = data.get("currentPassword") or ""
+    newPassword = data.get("newPassword") or ""
+    newPassword2 = data.get("newPassword2") or ""
 
-    try:
-        email = serializer.loads(
-            token,
-            salt=app.config["SECURITY_PASSWORD_SALT"],
-            max_age=3600,
-        )
-    except SignatureExpired:
-        return jsonify({"success": False, "error": "Reset link expired."}), 400
-    except BadSignature:
-        return jsonify({"success": False, "error": "Invalid reset link."}), 400
+    # try:
+    #     email = serializer.loads(
+    #         token,
+    #         salt=app.config["SECURITY_PASSWORD_SALT"],
+    #         max_age=3600,
+    #     )
+    # except SignatureExpired:
+    #     return jsonify({"success": False, "error": "Reset link expired."}), 400
+    # except BadSignature:
+    #     return jsonify({"success": False, "error": "Invalid reset link."}), 400
+    
+    
 
     errors = []
-    if len(password) < 8:
+    if len(newPassword) < 8:
         errors.append("Password must be at least 8 characters long.")
-    if password != password2:
+    if newPassword != newPassword2:
         errors.append("Passwords do not match.")
 
     if errors:
         return jsonify({"success": False, "errors": errors}), 400
-
+    
     db = get_db()
-    password_hash = generate_password_hash(password)
+    result = db.execute(
+        "SELECT password_hash FROM users WHERE email = ?", (email,)
+    ).fetchone()
+    
+    if not result or not check_password_hash(result["password_hash"], currentPassword):
+        return jsonify({"success": False, "error": "Current password is incorrect."}), 401
+
+    password_hash = generate_password_hash(newPassword)
     db.execute(
         "UPDATE users SET password_hash = ? WHERE email = ?",
         (password_hash, email),
@@ -422,6 +465,7 @@ def api_reset_password():
 # -------------------------
 if __name__ == "__main__":
     app.run(
+        # ssl_context='adhoc',
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 5000)),
         debug=True,
