@@ -13,5 +13,6 @@ namespace Infrastructure.Persistence
         public AppDbContext(DbContextOptions options) : base(options) { }
         public DbSet<Booking> Bookings => Set<Booking>();
         public DbSet<ApartmentCache> ApartmentCaches => Set<ApartmentCache>();
+        public DbSet<UserCache> UserCaches => Set<UserCache>();
     }
 }

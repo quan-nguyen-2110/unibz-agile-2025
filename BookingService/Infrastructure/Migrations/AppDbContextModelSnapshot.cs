@@ -91,7 +91,32 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ApartmentId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Bookings");
+                });
+
+            modelBuilder.Entity("Domain.Entities.UserCache", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserCaches");
                 });
 
             modelBuilder.Entity("Domain.Entities.Booking", b =>
@@ -102,7 +127,15 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Domain.Entities.UserCache", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Apartment");
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

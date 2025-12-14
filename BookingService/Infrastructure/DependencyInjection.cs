@@ -17,6 +17,7 @@ namespace Infrastructure
 
             services.AddScoped<IBookingRepository, BookingRepository>();
             services.AddScoped<IApartmentCacheRepository, ApartmentCacheRepository>();
+            services.AddScoped<IUserCacheRepository, UserCacheRepository>();
 
             services.AddHostedService<RabbitMqConsumer>();
 

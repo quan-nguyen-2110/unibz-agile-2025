@@ -16,6 +16,9 @@ namespace Application.Bookings.Queries.DTOs
         public decimal ApartmentPrice { get; set; }
 
         public Guid UserId { get; set; }
+        public string UserName { get; set; } = default!;
+        public string UserEmail { get; set; } = default!;
+        public string UserPhone { get; set; } = default!;
 
         public DateTime CheckIn { get; set; }
         public DateTime CheckOut { get; set; }

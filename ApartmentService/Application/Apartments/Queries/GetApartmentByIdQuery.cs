@@ -41,6 +41,7 @@ public class GetApartmentByIdQuery : IRequest<ApartmentDto?>
                 Description = apart.Description,
                 Amenities = apart.Amenities,
                 AvailableFrom = apart.AvailableFrom,
+                Noisy = apart.Noisy.ToString().ToLower(),
                 Base64Images = await _aptImageRepo.GetBase64ImagesByApartmentIdAsync(apart.Id),
 
                 Code = apart.Code,

@@ -1,6 +1,7 @@
 ﻿using Application.Interfaces.IMessaging;
 using Application.Interfaces.IRepository;
 using Domain.Entities;
+using Domain.Enums;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,7 @@ public class CreateApartmentCommand : IRequest<Guid>
 
     public string? Code { get; set; }
     public int Floor { get; set; }
+    public NoisyLevel Noisy { get; set; }
 
 
     public CreateApartmentCommand() { }
@@ -56,6 +58,7 @@ public class CreateApartmentCommand : IRequest<Guid>
                 Description = request.Description?.Trim(),
                 Amenities = request.Amenities?.Trim(),
                 AvailableFrom = request.AvailableFrom,
+                Noisy = request.Noisy,
                 ApartmentImages = ApartmentImages.FromBase64List(newApartmentId, request.Base64Images),
 
                 Code = request.Code,

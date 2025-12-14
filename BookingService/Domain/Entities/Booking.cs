@@ -42,6 +42,7 @@ namespace Domain.Entities
         public string? CancelReason { get; set; }
 
         public virtual ApartmentCache? Apartment { get; set; }
+        public virtual UserCache? User { get; set; }
 
         public int CalculateNights()
         {

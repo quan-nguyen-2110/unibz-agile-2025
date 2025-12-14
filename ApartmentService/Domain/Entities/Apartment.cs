@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -24,6 +25,7 @@ namespace Domain.Entities
 
         public DateTime? AvailableFrom { get; set; }
         public string? Amenities { get; set; }
+        public NoisyLevel Noisy { get; set; } = NoisyLevel.Moderate;
 
         public virtual List<ApartmentImages> ApartmentImages { get; set; } = new List<ApartmentImages>();
     }

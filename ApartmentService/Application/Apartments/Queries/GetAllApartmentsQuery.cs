@@ -37,6 +37,7 @@ namespace Application.Apartments.Queries
                         Description = apt.Description?.Trim(),
                         AvailableFrom = apt.AvailableFrom,
                         Amenities = apt.Amenities?.Trim(),
+                        Noisy = apt.Noisy.ToString().ToLower(),
 
                         Base64Images = apt.ApartmentImages.Select(x => x.Base64Image).ToList(),
 

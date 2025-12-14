@@ -1,6 +1,7 @@
 ﻿using Application.Interfaces.IMessaging;
 using Application.Interfaces.IRepository;
 using Domain.Entities;
+using Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
@@ -23,6 +24,7 @@ public class UpdateApartmentCommand : IRequest<bool>
 
     public string? Code { get; set; }
     public int Floor { get; set; }
+    public NoisyLevel Noisy { get; set; }
 
     public UpdateApartmentCommand() { }
 
@@ -61,6 +63,7 @@ public class UpdateApartmentCommand : IRequest<bool>
             apt.Description = request.Description?.Trim();
             apt.Amenities = request.Amenities?.Trim();
             apt.AvailableFrom = request.AvailableFrom;
+            apt.Noisy = request.Noisy;
             apt.Code = "";
 
             // Remove old images

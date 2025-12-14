@@ -8,6 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Render assigns the port dynamically
-ENV PORT=10000
+ENV PORT=5000
 
 CMD ["python", "app.py"]

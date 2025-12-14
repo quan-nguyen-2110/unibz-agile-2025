@@ -23,5 +23,6 @@ namespace Application.Apartments.Queries.DTOs
 
         public DateTime? AvailableFrom { get; set; }
         public string? Amenities { get; set; }
+        public string Noisy { get; set; }
     }
 }

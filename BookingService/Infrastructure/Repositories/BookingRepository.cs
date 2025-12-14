@@ -28,7 +28,7 @@ namespace Infrastructure.Repositories
         }
 
         public Task<List<Booking>> GetAllAsync()
-            => _db.Bookings.Include(x => x.Apartment).ToListAsync();
+            => _db.Bookings.Include(x => x.Apartment).Include(x => x.User).ToListAsync();
 
         public async Task<Booking?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => await _db.Bookings.FindAsync(new object[] { id }, ct);

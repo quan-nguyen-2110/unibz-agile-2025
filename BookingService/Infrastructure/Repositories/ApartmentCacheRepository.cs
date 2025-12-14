@@ -33,5 +33,15 @@ namespace Infrastructure.Repositories
 
         public async Task<bool> IsExistingAsync(Guid id, CancellationToken ct = default)
             => await _db.ApartmentCaches.AnyAsync(x => x.Id == id);
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var apt = await _db.ApartmentCaches.FindAsync(id);
+            if (apt != null)
+            {
+                _db.ApartmentCaches.Remove(apt);
+                await _db.SaveChangesAsync();
+            }
+        }
     }
 }

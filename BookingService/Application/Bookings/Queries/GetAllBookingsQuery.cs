@@ -23,12 +23,15 @@ namespace Application.Bookings.Queries
                 List<BookingDto> bookingDtos = bookings.Select(booking => new BookingDto
                 {
                     Id = booking.Id,
+
+                    // Apartment
                     ApartmentId = booking.ApartmentId,
                     ApartmentTitle = booking.Apartment?.Title ?? "",
                     ApartmentImage = booking.Apartment?.Base64Image ?? "",
                     ApartmentAddress = booking.Apartment?.Address ?? "",
                     ApartmentPrice = booking.Apartment?.Price ?? 0,
-                    UserId = booking.UserId,
+
+                    // Booking
                     CheckIn = booking.CheckIn,
                     CheckOut = booking.CheckOut,
                     Guests = booking.Guests,
@@ -36,7 +39,13 @@ namespace Application.Bookings.Queries
                     TotalPrice = booking.TotalPrice,
                     Status = booking.Status.ToString().ToLower(),
                     CreatedAt = booking.CreatedAt,
-                    CancelReason = booking.CancelReason
+                    CancelReason = booking.CancelReason,
+
+                    // User
+                    UserId = booking.UserId,
+                    UserName = booking.User?.Name ?? "Unknown User",
+                    UserPhone = booking.User?.Phone ?? "Unknown Phone",
+                    UserEmail = booking.User?.Email ?? "Unknown Email",
                 }).ToList();
 
                 return bookingDtos;

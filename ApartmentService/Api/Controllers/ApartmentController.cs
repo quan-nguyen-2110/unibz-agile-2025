@@ -38,7 +38,8 @@ public class ApartmentController(IMediator mediator) : ControllerBase
     /// <remarks>
     /// Create a new apartment
     /// </remarks>
-    /// <param name="cmd">The command containing the details required to create the apartment.</param>
+    /// <param name="cmd">The command containing the details required to create the apartment. 
+    /// Noisy: Quite/Moderate/Noisy</param>
     /// <returns>An <see cref="IActionResult"/> indicating the result of the operation.</returns>
     [HttpPost]
     public async Task<IActionResult> Create(CreateApartmentCommand cmd)

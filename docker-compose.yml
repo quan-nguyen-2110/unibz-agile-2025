@@ -1,15 +1,19 @@
 version: '3.9'
 
 services:
+
+  # -------------------------
+  # RABBITMQ (Shared Message Bus)
+  # -------------------------
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"      # AMQP for apps
-      - "15672:15672"    # RabbitMQ UI → http://localhost:15672
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
 
   # -------------------------
   # APARTMENT SERVICE
@@ -17,7 +21,7 @@ services:
   apartment_api:
     container_name: apartment_api
     build:
-      context: ../ApartmentService 
+      context: ./ApartmentService 
       dockerfile: Api/Dockerfile
     ports:
       - "8081:8080"
@@ -52,7 +56,7 @@ services:
   booking_api:
     container_name: booking_api
     build:
-      context: ../BookingService
+      context: ./BookingService
       dockerfile: Api/Dockerfile
     ports:
       - "8083:8080"
@@ -81,17 +85,26 @@ services:
     volumes:
       - booking_sql_data:/var/opt/mssql
 
+# -------------------------
+# FRONTEND SERVICE
+# -------------------------
+  frontend:
+    container_name: react-vite-app
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    volumes:
+      - ./Frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - apartment_api
+      - booking_api
+    restart: always
 
-  # -------------------------
-  # VOLUMES
-  # -------------------------
-  volumes:
-    apartment_sql_data:
-    booking_sql_data:
-
-  # -------------------------
-  # AUTH SERVICE
-  # -------------------------
+# -------------------------
+# AUTH SERVICE
+# -------------------------
   auth:
     container_name: auth_service
     build:
@@ -102,7 +115,16 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=guest
       - RABBITMQ_PASS=guest
+      - RABBITMQ_EXCHANGE=rent-hub.exchange
     depends_on:
       - rabbitmq
     ports:
       - "5004:5000"   # Flask on http://localhost:5004
+
+# -------------------------
+# VOLUMES
+# -------------------------
+volumes:
+  apartment_sql_data:
+  booking_sql_data:
+

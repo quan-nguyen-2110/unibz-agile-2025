@@ -2,12 +2,27 @@ using Application.Apartments.Queries;
 using Infrastructure;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // Convert enums to strings in JSON request/response bodies
+    options.JsonSerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(
+            namingPolicy: null,
+            allowIntegerValues: false
+        )
+    );
+
+    // Make enum parsing case-insensitive
+    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+}); ;
+
+
 
 // Register MediatR handlers
 //builder.Services.AddMediatR(cfg =>
@@ -40,7 +55,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:8080") // frontend URL
+        policy.WithOrigins("*") // frontend URL
               .AllowAnyHeader()
               .AllowAnyMethod(); // GET, POST, PUT, DELETE
     });
@@ -50,11 +65,12 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 Console.WriteLine($"Environment: {app.Environment.EnvironmentName}");
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseDeveloperExceptionPage();
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    app.UseDeveloperExceptionPage();
     // Database.Migrate() will apply all pending migrations automatically when the app starts.
     // For development / staging environments only!
     // For production: prefer CI/CD migration step to have control and avoid accidental data loss.

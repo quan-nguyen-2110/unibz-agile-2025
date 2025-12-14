@@ -57,6 +57,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("Floor")
                         .HasColumnType("int");
 
+                    b.Property<int>("Noisy")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
